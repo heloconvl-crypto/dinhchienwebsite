@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraSound - Trải Nghiệm Âm Thanh Đỉnh Cao</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Lexend (Font có đặc điểm chữ tròn, rộng ngang, tạo cảm giác "lùn" và hiện đại) -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Cấu hình Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        /* Áp dụng font Lexend cho toàn bộ trang */
+                        sans: ['Lexend', 'sans-serif'],
+                        heading: ['Lexend', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#007AFF', /* Blue chuẩn iOS */
+                        secondary: '#5856D6', /* Purple iOS */
+                        accent: '#FF2D55', /* Pink iOS */
+                        dark: '#1c1c1e',
+                        lightbg: '#f2f2f7', /* Nền xám nhạt của iOS */
+                        cardbg: 'rgba(255, 255, 255, 0.65)'
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'slide-up': 'slideUp 0.8s ease-out forwards',
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'liquid-spin': 'liquidSpin 6s linear infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-15px)' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(30px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        liquidSpin: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f2f2f7;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d1d6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #007AFF;
+        }
+
+        body {
+            background-color: #f2f2f7;
+            color: #1c1c1e;
+            overflow-x: hidden;
+            /* Giúp font có cảm giác lùn và dàn trải hơn */
+            letter-spacing: 0.02em; 
+            line-height: 1.6;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            letter-spacing: -0.03em; /* Tiêu đề khít lại để hiện đại */
+            line-height: 1.1;
+        }
+
+        /* Gradient văn bản */
+        .text-gradient {
+            background: linear-gradient(135deg, #007AFF, #5856D6, #FF2D55);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* --- HIỆU ỨNG LIQUID CẦU VỒNG (iOS Style) --- */
+        .ios-liquid {
+            position: relative;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 1.5rem;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            transition: all 0.4s ease;
+        }
+        
+        .ios-liquid::before {
+            content: '';
+            position: absolute;
+            inset: -4px; /* Độ dày của viền loang */
+            z-index: -1;
+            border-radius: 1.8rem;
+            /* Dải màu cầu vồng iOS Siri */
+            background: linear-gradient(120deg, #ff2a85, #ff7a00, #10b981, #007AFF, #5856D6, #ff2a85);
+            background-size: 300% 300%;
+            animation: rgbGlow 6s linear infinite;
+            filter: blur(12px); /* Độ loang mép */
+            opacity: 0; /* Mặc định ẩn, hiện khi hover hoặc active */
+            transition: opacity 0.4s ease, filter 0.4s ease;
+        }
+
+        .ios-liquid:hover {
+            transform: translateY(-5px);
+        }
+
+        .ios-liquid:hover::before, .ios-liquid.active-liquid::before {
+            opacity: 0.85;
+            filter: blur(15px);
+        }
+
+        @keyframes rgbGlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Ảnh sản phẩm */
+        .product-img-wrapper {
+            position: relative;
+            z-index: 10;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .product-card:hover .product-img-wrapper {
+            transform: scale(1.08) rotate(-3deg);
+        }
+
+        /* Filter buttons */
+        .filter-btn.active {
+            background-color: #007AFF;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4);
+            border-color: #007AFF;
+        }
+
+        /* Grid transition */
+        #products-grid {
+            transition: opacity 0.3s ease;
+        }
+
+        /* Modal tùy chỉnh */
+        .modal-overlay {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: opacity 0.4s ease;
+        }
+        
+        .modal-content {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
+        }
+
+        /* Hiệu ứng hiển thị khi cuộn */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s ease-out;
+        }
+        
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Navigation Glass */
+        .nav-glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Hiệu ứng cầu vồng mờ (kính loang tròn xuất) cho các ô bấm */
+        .btn-rainbow-glass {
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .btn-rainbow-glass::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(255, 45, 85, 0.4) 0%, rgba(88, 86, 214, 0.4) 50%, rgba(0, 122, 255, 0.4) 100%);
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            filter: blur(15px);
+            opacity: 0;
+            transition: width 0.5s ease, padding-top 0.5s ease, opacity 0.5s ease;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .btn-rainbow-glass:hover::after {
+            width: 300%;
+            padding-top: 300%;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 py-3 px-6 md:px-12 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto flex justify-between items-center bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_4px_30px_rgba(0,0,0,0.03)] rounded-full px-6 py-3">
+            <!-- Logo -->
+            <a href="#home" class="font-bold text-xl tracking-tighter flex items-center gap-2 text-gray-900">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-white text-sm shadow-md">
+                    <i class="fa-solid fa-wave-square"></i>
+                </div>
+                AURA<span class="text-primary font-normal">SOUND</span>
+            </a>
+
+            <!-- Menu Desktop (Mở cửa sổ nhỏ) -->
+            <div class="hidden md:flex space-x-8 items-center font-medium text-sm">
+                <a href="#home" class="text-gray-600 hover:text-primary transition-colors relative group">
+                    Trang chủ
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </a>
+                <a href="#best-seller" class="text-gray-600 hover:text-primary transition-colors relative group">
+                    Best Seller
+                </a>
+                <a href="#collections" class="text-gray-600 hover:text-primary transition-colors relative group">
+                    Bộ Sưu Tập
+                </a>
+                <button onclick="openSiteModal('aboutModal')" class="text-gray-600 hover:text-primary transition-colors relative group focus:outline-none">
+                    Về Chúng Tôi
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </button>
+                <button onclick="openSiteModal('contactModal')" class="text-gray-600 hover:text-primary transition-colors relative group focus:outline-none">
+                    Liên Hệ
+                    <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
+                </button>
+            </div>
+
+            <!-- Icons -->
+            <div class="flex items-center gap-5">
+                <button class="text-gray-600 hover:text-primary transition-colors w-8 h-8 bg-white rounded-full shadow-sm flex items-center justify-center">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <button class="text-gray-600 hover:text-primary transition-colors relative w-8 h-8 bg-white rounded-full shadow-sm flex items-center justify-center">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span class="absolute -top-1 -right-1 bg-accent text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold border border-white">2</span>
+                </button>
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden text-gray-800 hover:text-primary" id="mobile-menu-btn">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Overlay -->
+        <div class="md:hidden absolute top-[80px] left-4 right-4 bg-white/80 backdrop-blur-xl border border-white rounded-2xl flex-col items-center py-6 hidden shadow-xl z-50" id="mobile-menu">
+            <a href="#home" onclick="closeMobileMenu()" class="py-3 text-base font-medium text-gray-700 w-full text-center hover:bg-gray-50">Trang chủ</a>
+            <button onclick="openSiteModal('aboutModal'); closeMobileMenu()" class="py-3 text-base font-medium text-gray-700 w-full text-center hover:bg-gray-50">Về Chúng Tôi</button>
+            <button onclick="openSiteModal('contactModal'); closeMobileMenu()" class="py-3 text-base font-medium text-gray-700 w-full text-center hover:bg-gray-50">Liên Hệ</button>
+        </div>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- PHẦN 1: TRANG CHỦ (MAIN HOME CONTENT)      -->
+    <!-- ========================================== -->
+    <div id="page-home" class="block">
+        
+        <!-- Hero Section -->
+        <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+            <!-- Background Elements -->
+            <div class="absolute inset-0 z-0 overflow-hidden">
+                <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-300/30 rounded-full blur-[100px] mix-blend-multiply"></div>
+                <div class="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-pink-300/30 rounded-full blur-[100px] mix-blend-multiply"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10 w-full">
+                <!-- Text Content -->
+                <div class="space-y-6 text-center lg:text-left pt-10 lg:pt-0">
+                    <div class="inline-block px-4 py-1.5 rounded-full bg-white shadow-sm border border-gray-100 text-primary text-xs font-semibold tracking-wide uppercase mb-2 animate-slide-up">
+                        <i class="fa-solid fa-sparkles mr-1"></i> Trải nghiệm iOS 18 Design
+                    </div>
+                    <h1 class="text-5xl md:text-7xl font-bold leading-[1.1] animate-slide-up tracking-tighter text-gray-900" style="animation-delay: 0.1s;">
+                        Âm Thanh <br>
+                        <span class="text-gradient">Thuần Khiết</span>
+                    </h1>
+                    <p class="text-gray-600 text-lg max-w-lg mx-auto lg:mx-0 animate-slide-up" style="animation-delay: 0.2s;">
+                        Tái định nghĩa không gian âm nhạc của bạn với bộ sưu tập loa cao cấp. Thiết kế tối giản, chất âm hoàn mỹ, tương tác chạm mượt mà.
+                    </p>
+                    <div class="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-slide-up pt-4" style="animation-delay: 0.3s;">
+                        <button onclick="document.getElementById('collections').scrollIntoView()" class="btn-rainbow-glass bg-gray-900 hover:bg-gray-800 text-white px-8 py-4 rounded-full font-semibold text-sm w-full sm:w-auto text-center transition-all shadow-lg shadow-gray-900/20 hover:shadow-xl hover:-translate-y-1">
+                            <span class="relative z-10">Mua Ngay</span>
+                        </button>
+                        <a href="#" class="btn-rainbow-glass px-8 py-4 rounded-full font-semibold text-sm text-gray-800 bg-white border border-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2 w-full sm:w-auto text-center justify-center">
+                            <i class="fa-solid fa-play text-primary relative z-10"></i>
+                            <span class="relative z-10">Xem Video</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Image Content -->
+                <div class="relative flex justify-center animate-slide-up" style="animation-delay: 0.4s;">
+                    <!-- Ảnh sản phẩm chính (Dùng ảnh có nền sáng/trắng) -->
+                    <div class="relative w-full max-w-[450px] ios-liquid p-6 aspect-square flex items-center justify-center active-liquid">
+                        <img src="https://images.unsplash.com/photo-1545454675-3531b543be5d?q=80&w=800&auto=format&fit=crop" 
+                             alt="Loa Hero" 
+                             class="w-full h-full object-cover rounded-2xl animate-float drop-shadow-2xl">
+                             
+                        <!-- Floating badges -->
+                        <div class="absolute -top-4 -right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg border border-white flex items-center gap-2 animate-bounce" style="animation-duration: 4s;">
+                            <span class="text-2xl">🔋</span>
+                            <div class="text-left">
+                                <p class="text-[10px] text-gray-500 uppercase font-bold">Pin</p>
+                                <p class="font-bold text-sm text-gray-900">24 Giờ</p>
+                            </div>
+                        </div>
+                        
+                        <div class="absolute -bottom-6 -left-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg border border-white flex items-center gap-2 animate-bounce" style="animation-duration: 5s; animation-delay: 1s;">
+                            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-primary">
+                                <i class="fa-solid fa-wifi"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-[10px] text-gray-500 uppercase font-bold">Lossless</p>
+                                <p class="font-bold text-sm text-gray-900">AirPlay 2</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Seller Section -->
+        <section id="best-seller" class="py-24 relative z-10">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-gray-900">
+                        <span class="text-gradient">Nổi Bật</span> Nhất
+                    </h2>
+                    <p class="text-gray-500 max-w-2xl mx-auto">Tuyệt tác công nghệ được săn đón nhiều nhất với trải nghiệm âm thanh đa chiều.</p>
+                </div>
+
+                <div class="ios-liquid p-8 md:p-12 relative reveal active-liquid">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        <!-- Hình ảnh Best Seller -->
+                        <div class="relative cursor-pointer group" onclick="openProductModal('sp1')">
+                            <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop" 
+                                 alt="AuraX Pro" 
+                                 class="w-full rounded-2xl object-cover h-[400px] drop-shadow-xl transition-transform duration-500 group-hover:scale-105">
+                            
+                            <div class="absolute top-4 left-4 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide z-20 shadow-md">
+                                #1 Bán Chạy
+                            </div>
+                        </div>
+
+                        <!-- Thông tin -->
+                        <div class="space-y-5">
+                            <h3 class="text-4xl font-bold text-gray-900 tracking-tight">Aura Studio <span class="text-primary">Desk</span></h3>
+                            <p class="text-2xl font-bold text-gray-900">3,200,000 ₫</p>
+                            
+                            <p class="text-gray-600 leading-relaxed">
+                                Hệ thống âm thanh vòm 2.1 với dải mid ngọt ngào. Thiết kế tối giản tinh tế, vỏ làm từ nhôm nguyên khối và vải bọc cao cấp, kết nối đa thiết bị liền mạch.
+                            </p>
+
+                            <div class="grid grid-cols-2 gap-4 py-2">
+                                <div class="flex items-center gap-3 bg-white/50 p-3 rounded-xl border border-white">
+                                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-primary text-sm"><i class="fa-solid fa-vr-cardboard"></i></div>
+                                    <span class="text-sm font-medium text-gray-800">Âm thanh 3D</span>
+                                </div>
+                                <div class="flex items-center gap-3 bg-white/50 p-3 rounded-xl border border-white">
+                                    <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-secondary text-sm"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                                    <span class="text-sm font-medium text-gray-800">Chip AI Core</span>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4 pt-4">
+                                <button onclick="openProductModal('sp1')" class="bg-gray-900 hover:bg-gray-800 text-white flex-1 py-4 rounded-full font-semibold transition-all">
+                                    Xem Chi Tiết
+                                </button>
+                                <button class="w-14 h-14 bg-white border border-gray-200 text-gray-900 hover:text-primary hover:border-primary rounded-full flex items-center justify-center transition-colors shadow-sm">
+                                    <i class="fa-solid fa-cart-plus text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Collections Section -->
+        <section id="collections" class="py-24 relative z-10">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="flex flex-col md:flex-row justify-between items-end mb-12 reveal">
+                    <div>
+                        <h2 class="text-3xl md:text-4xl font-bold mb-2 tracking-tight text-gray-900">Bộ Sưu Tập</h2>
+                        <p class="text-gray-500">Đa dạng lựa chọn cho mọi không gian sống.</p>
+                    </div>
+                    
+                    <!-- Bộ lọc JS -->
+                    <div class="flex gap-2 mt-6 md:mt-0 overflow-x-auto pb-2 scrollbar-hide w-full md:w-auto" id="filter-container">
+                        <button class="filter-btn active btn-rainbow-glass px-6 py-2 rounded-full border border-gray-200 bg-white text-gray-700 text-sm font-medium whitespace-nowrap transition-all" data-filter="all"><span class="relative z-10">Tất cả</span></button>
+                        <button class="filter-btn btn-rainbow-glass px-6 py-2 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium whitespace-nowrap transition-all" data-filter="Di động"><span class="relative z-10">Di động</span></button>
+                        <button class="filter-btn btn-rainbow-glass px-6 py-2 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium whitespace-nowrap transition-all" data-filter="Để bàn"><span class="relative z-10">Để bàn</span></button>
+                        <button class="filter-btn btn-rainbow-glass px-6 py-2 rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium whitespace-nowrap transition-all" data-filter="Gaming"><span class="relative z-10">Gaming</span></button>
+                    </div>
+                </div>
+
+                <!-- Grid Sản phẩm (Sẽ được JS render vào đây) -->
+                <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Products rendered by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Technology Section -->
+        <section class="py-24 relative z-10 overflow-hidden bg-white">
+            <div class="max-w-7xl mx-auto px-6 relative z-10">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-gray-900">Công Nghệ <span class="text-gradient">Cốt Lõi</span></h2>
+                    <p class="text-gray-500">Sự kết hợp giữa nghệ thuật chế tác và kỹ thuật số.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="ios-liquid p-8 text-center reveal">
+                        <div class="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center text-primary text-2xl mb-6 shadow-sm border border-blue-100">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3 text-gray-900">Chip Aura AI</h3>
+                        <p class="text-gray-500 text-sm">Phân tích không gian phòng trong thời gian thực để tinh chỉnh EQ, cho âm thanh hoàn hảo ở mọi góc độ.</p>
+                    </div>
+
+                    <div class="ios-liquid p-8 text-center reveal" style="transition-delay: 0.1s;">
+                        <div class="w-16 h-16 mx-auto bg-purple-50 rounded-full flex items-center justify-center text-secondary text-2xl mb-6 shadow-sm border border-purple-100">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3 text-gray-900">Vật Liệu Premium</h3>
+                        <p class="text-gray-500 text-sm">Khung nhôm nguyên khối Series 7000 kết hợp lưới vải Kvadrat chống bụi, triệt tiêu nhiễu âm tối đa.</p>
+                    </div>
+
+                    <div class="ios-liquid p-8 text-center reveal" style="transition-delay: 0.2s;">
+                        <div class="w-16 h-16 mx-auto bg-pink-50 rounded-full flex items-center justify-center text-accent text-2xl mb-6 shadow-sm border border-pink-100">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3 text-gray-900">AirSync 2.0</h3>
+                        <p class="text-gray-500 text-sm">Kết nối không dây độ trễ siêu thấp, ghép nối đa loa chỉ bằng một cú chạm (Tap to play) qua NFC.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div> <!-- END TRANG CHỦ -->
+
+
+    <!-- ========================================== -->
+    <!-- MODAL: VỀ CHÚNG TÔI & LIÊN HỆ              -->
+    <!-- ========================================== -->
+
+    <!-- Modal Về Chúng Tôi -->
+    <div id="aboutModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+        <div class="absolute inset-0 modal-overlay" onclick="closeSiteModal('aboutModal')"></div>
+        <div class="w-full max-w-4xl max-h-[85vh] rounded-3xl relative z-10 flex flex-col overflow-y-auto overflow-x-hidden modal-content scale-95 opacity-0 bg-white/90 backdrop-blur-xl p-8 md:p-12 scrollbar-hide border border-white">
+            <button onclick="closeSiteModal('aboutModal')" class="absolute top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center transition-colors z-50">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="text-center mb-10">
+                <h2 class="text-4xl md:text-5xl font-bold mb-3 tracking-tight text-gray-900">Câu Chuyện <span class="text-gradient">AuraSound</span></h2>
+                <p class="text-gray-500 text-lg">Định hình lại cách thế giới cảm nhận âm thanh kể từ năm 2026.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center mb-12">
+                <div class="ios-liquid p-2">
+                    <img src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop" class="w-full rounded-2xl object-cover h-[300px]" alt="Team">
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-2xl font-bold text-gray-900">Khởi nguồn từ đam mê</h3>
+                    <p class="text-gray-600 leading-relaxed text-sm">
+                        AuraSound được thành lập bởi một nhóm các kỹ sư âm thanh và nhà thiết kế công nghiệp với một tầm nhìn chung: tạo ra những thiết bị âm thanh không chỉ có chất âm xuất sắc mà còn là những tác phẩm nghệ thuật trưng bày trong không gian sống.
+                    </p>
+                    <p class="text-gray-600 leading-relaxed text-sm">
+                        Chúng tôi tin rằng âm nhạc là ngôn ngữ vô hình của cảm xúc. Nhiệm vụ của chúng tôi là truyền tải sự nguyên bản của âm thanh đến tai bạn một cách hoàn mỹ nhất.
+                    </p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 text-center">
+                    <h4 class="text-3xl font-bold text-primary mb-1">50+</h4>
+                    <p class="text-gray-500 font-medium text-sm">Bằng sáng chế</p>
+                </div>
+                <div class="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 text-center">
+                    <h4 class="text-3xl font-bold text-secondary mb-1">1M+</h4>
+                    <p class="text-gray-500 font-medium text-sm">Khách hàng tin dùng</p>
+                </div>
+                <div class="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 text-center">
+                    <h4 class="text-3xl font-bold text-accent mb-1">15</h4>
+                    <p class="text-gray-500 font-medium text-sm">Giải thưởng thiết kế</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Liên Hệ -->
+    <div id="contactModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+        <div class="absolute inset-0 modal-overlay" onclick="closeSiteModal('contactModal')"></div>
+        <div class="w-full max-w-2xl max-h-[90vh] rounded-3xl relative z-10 flex flex-col overflow-y-auto overflow-x-hidden modal-content scale-95 opacity-0 bg-white/95 backdrop-blur-2xl p-8 md:p-12 scrollbar-hide border border-white">
+            <button onclick="closeSiteModal('contactModal')" class="absolute top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center transition-colors z-50">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="text-center mb-8">
+                <h2 class="text-4xl font-bold mb-3 tracking-tight text-gray-900">Liên Hệ <span class="text-gradient">Với Chúng Tôi</span></h2>
+                <p class="text-gray-500">Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn 24/7.</p>
+            </div>
+            <div class="ios-liquid p-6 md:p-8 active-liquid">
+                <form class="space-y-5" onsubmit="event.preventDefault(); alert('Cảm ơn bạn! Lời nhắn đã được gửi.'); closeSiteModal('contactModal');">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-1">
+                            <label class="text-sm font-semibold text-gray-700">Họ và Tên</label>
+                            <input type="text" class="w-full bg-white/70 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" required placeholder="Nhập tên của bạn...">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-sm font-semibold text-gray-700">Email</label>
+                            <input type="email" class="w-full bg-white/70 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" required placeholder="example@email.com">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-semibold text-gray-700">Nội dung tin nhắn</label>
+                        <textarea rows="4" class="w-full bg-white/70 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" required placeholder="Bạn cần hỗ trợ gì?"></textarea>
+                    </div>
+                    <button type="submit" class="btn-rainbow-glass w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl transition-all shadow-md">
+                        <span class="relative z-10">Gửi Tin Nhắn</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Footer -->
+    <footer class="bg-white pt-16 pb-8 border-t border-gray-200 relative z-10" id="main-footer">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+                <!-- Brand -->
+                <div class="space-y-4">
+                    <a href="?page=home" class="font-bold text-2xl tracking-tighter flex items-center gap-2 text-gray-900">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-white text-sm">
+                            <i class="fa-solid fa-wave-square"></i>
+                        </div>
+                        AURA<span class="text-primary font-normal">SOUND</span>
+                    </a>
+                    <p class="text-gray-500 text-sm leading-relaxed">
+                        Thiết kế đẳng cấp. Âm thanh nguyên bản. Trải nghiệm tương lai ngay hôm nay.
+                    </p>
+                    <div class="flex gap-4 pt-2">
+                        <a href="#" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:text-white hover:bg-primary transition-all"><i class="fa-brands fa-apple"></i></a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:text-white hover:bg-primary transition-all"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:text-white hover:bg-primary transition-all"><i class="fa-brands fa-youtube"></i></a>
+                    </div>
+                </div>
+
+                <!-- Links -->
+                <div>
+                    <h4 class="text-gray-900 font-bold mb-6 text-sm uppercase tracking-widest">Khám phá</h4>
+                    <ul class="space-y-3 text-sm text-gray-500">
+                        <li><a href="#home" class="hover:text-primary transition-colors">Sản phẩm mới</a></li>
+                        <li><button onclick="openSiteModal('aboutModal')" class="hover:text-primary transition-colors focus:outline-none">Về chúng tôi</button></li>
+                        <li><a href="#" class="hover:text-primary transition-colors">Công nghệ độc quyền</a></li>
+                    </ul>
+                </div>
+
+                <!-- Support -->
+                <div>
+                    <h4 class="text-gray-900 font-bold mb-6 text-sm uppercase tracking-widest">Hỗ Trợ</h4>
+                    <ul class="space-y-3 text-sm text-gray-500">
+                        <li><button onclick="openSiteModal('contactModal')" class="hover:text-primary transition-colors focus:outline-none">Liên hệ</button></li>
+                        <li><a href="#" class="hover:text-primary transition-colors">Trung tâm bảo hành</a></li>
+                        <li><a href="#" class="hover:text-primary transition-colors">Chính sách đổi trả</a></li>
+                    </ul>
+                </div>
+
+                <!-- Newsletter -->
+                <div>
+                    <h4 class="text-gray-900 font-bold mb-6 text-sm uppercase tracking-widest">Nhận Ưu Đãi</h4>
+                    <p class="text-gray-500 text-sm mb-4">Đăng ký email để nhận mã giảm giá 10%.</p>
+                    <div class="flex">
+                        <input type="email" placeholder="Email của bạn..." class="bg-gray-50 border border-gray-200 rounded-l-xl px-4 py-3 w-full text-sm focus:outline-none focus:border-primary text-gray-900">
+                        <button class="bg-gray-900 hover:bg-gray-800 text-white px-5 py-3 rounded-r-xl transition-colors">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-gray-400 text-sm">© 2026 AuraSound. Designed in Vietnam.</p>
+                <div class="flex gap-6 text-sm text-gray-400">
+                    <a href="#" class="hover:text-gray-900">Bảo mật</a>
+                    <a href="#" class="hover:text-gray-900">Điều khoản</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal Chi tiết sản phẩm (Light Mode) -->
+    <div id="productModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+        <div class="absolute inset-0 modal-overlay" onclick="closeProductModal()"></div>
+        
+        <div class="w-full max-w-5xl h-[90vh] md:h-[80vh] rounded-3xl relative z-10 flex flex-col overflow-hidden modal-content scale-95 opacity-0" id="modalContent">
+            
+            <button onclick="closeProductModal()" class="absolute top-4 right-4 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center transition-colors z-50">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div class="flex-1 overflow-y-auto overflow-x-hidden p-0 md:p-8 flex flex-col lg:flex-row gap-8">
+                
+                <!-- Cột trái: Hình ảnh -->
+                <div class="w-full lg:w-1/2 relative bg-gray-50 rounded-2xl flex items-center justify-center p-8 min-h-[300px] border border-gray-100">
+                    <div id="modalImageContainer" class="relative z-10 w-full h-full flex items-center justify-center perspective-1000">
+                        <img id="modalImg" src="" alt="Product" class="max-h-[400px] object-contain drop-shadow-2xl transition-transform duration-500">
+                    </div>
+                </div>
+
+                <!-- Cột phải: Thông tin -->
+                <div class="w-full lg:w-1/2 px-6 pb-8 md:px-0 md:pb-0 space-y-6">
+                    <div class="flex items-center gap-2 text-primary text-xs font-bold tracking-widest uppercase bg-blue-50 w-max px-3 py-1 rounded-full border border-blue-100">
+                        <span id="modalCategory">Danh mục</span>
+                    </div>
+                    
+                    <h2 id="modalTitle" class="text-3xl md:text-5xl font-bold tracking-tight text-gray-900">Tên Sản Phẩm</h2>
+                    
+                    <div class="flex items-baseline gap-4">
+                        <p id="modalPrice" class="text-2xl md:text-3xl font-bold text-primary">Giá</p>
+                        <span class="text-green-600 text-sm font-medium bg-green-50 px-3 py-1 rounded-full border border-green-100">Sẵn hàng</span>
+                    </div>
+
+                    <p id="modalDesc" class="text-gray-600 leading-relaxed text-sm md:text-base">
+                        Mô tả chi tiết sản phẩm.
+                    </p>
+
+                    <!-- Màu sắc -->
+                    <div>
+                        <p class="text-sm font-medium text-gray-900 mb-3">Màu sắc hoàn thiện:</p>
+                        <div class="flex gap-3">
+                            <button class="w-10 h-10 rounded-full bg-white border-2 border-primary ring-2 ring-blue-100 shadow-sm"></button>
+                            <button class="w-10 h-10 rounded-full bg-gray-900 border-2 border-transparent hover:border-gray-300 transition-colors shadow-sm"></button>
+                            <button class="w-10 h-10 rounded-full bg-rose-500 border-2 border-transparent hover:border-gray-300 transition-colors shadow-sm"></button>
+                        </div>
+                    </div>
+
+                    <!-- Hành động -->
+                    <div class="flex gap-4 pt-4 mt-auto">
+                        <button class="btn-rainbow-glass bg-gray-900 hover:bg-gray-800 text-white flex-1 py-4 rounded-xl font-bold tracking-wide text-sm flex items-center justify-center gap-2 shadow-md transition-all" onclick="alert('Đã thêm sản phẩm vào túi hàng!')">
+                            <span class="relative z-10 flex items-center gap-2">Thêm Vào Giỏ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // --- XỬ LÝ MODAL TRANG (VỀ CHÚNG TÔI, LIÊN HỆ) ---
+        function openSiteModal(modalId) {
+            document.body.style.overflow = 'hidden';
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeSiteModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.querySelector('.modal-content').classList.remove('scale-100', 'opacity-100');
+            modal.querySelector('.modal-content').classList.add('scale-95', 'opacity-0');
+            
+            // Khôi phục thanh cuộn ngay lập tức
+            document.body.style.overflow = '';
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 400);
+        }
+
+        function closeMobileMenu() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            mobileMenu.classList.add('hidden');
+            mobileMenu.classList.remove('flex');
+            const icon = mobileBtn.querySelector('i');
+            icon.classList.remove('fa-xmark');
+            icon.classList.add('fa-bars');
+        }
+
+        // --- CƠ SỞ DỮ LIỆU SẢN PHẨM HOÀN CHỈNH ---
+        const productsData = [
+            {
+                id: 'sp1',
+                title: 'Aura Studio Desk',
+                category: 'Để bàn',
+                price: '3,200,000 ₫',
+                desc: 'Thiết kế để bàn tối giản với vỏ nhôm và vải. Âm trầm sâu, dải mid rõ nét. Trợ lý ảo Siri/Google tích hợp.',
+                img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop'
+            },
+            {
+                id: 'sp2',
+                title: 'Aura Mini Go',
+                category: 'Di động',
+                price: '1,800,000 ₫',
+                desc: 'Loa bluetooth siêu nhỏ gọn, chống nước IP67. Kèm dây đeo chắc chắn, âm lượng đáng kinh ngạc so với kích thước.',
+                img: 'https://images.unsplash.com/photo-1608223668261-2fb115372c05?q=80&w=600&auto=format&fit=crop'
+            },
+            {
+                id: 'sp3',
+                title: 'Aura Gamer Z',
+                category: 'Gaming',
+                price: '2,500,000 ₫',
+                desc: 'Độ trễ thấp <10ms. Đèn LED RGB đổi màu theo nhịp độ game. Âm thanh vòm 360 độ định hướng tiếng bước chân chính xác.',
+                img: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?q=80&w=600&auto=format&fit=crop'
+            },
+            {
+                id: 'sp4',
+                title: 'Aura Soundbar Pro',
+                category: 'Để bàn',
+                price: '6,500,000 ₫',
+                desc: 'Biến phòng khách thành rạp chiếu phim với chuẩn Dolby Atmos. Đi kèm subwoofer không dây công suất 200W.',
+                img: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?q=80&w=600&auto=format&fit=crop'
+            },
+            {
+                id: 'sp5',
+                title: 'Aura Party Box',
+                category: 'Di động',
+                price: '5,000,000 ₫',
+                desc: 'Cỗ máy khuấy động tiệc tùng. Công suất 150W RMS, pin 18 giờ, kèm micro không dây hát karaoke.',
+                img: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?q=80&w=600&auto=format&fit=crop'
+            },
+            {
+                id: 'sp6',
+                title: 'Aura eSports 360',
+                category: 'Gaming',
+                price: '3,500,000 ₫',
+                desc: 'Phiên bản đặc biệt dành cho Game thủ chuyên nghiệp. Thiết kế góc cạnh, hỗ trợ kết nối kép hai thiết bị PC/Console cùng lúc.',
+                img: 'https://images.unsplash.com/photo-1612222869049-d8ec83637a3c?q=80&w=600&auto=format&fit=crop'
+            }
+        ];
+
+        // --- XỬ LÝ LỌC SẢN PHẨM & RENDER ---
+        const productsGrid = document.getElementById('products-grid');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        function renderProducts(filterCategory) {
+            if(!productsGrid) return;
+            
+            // Fade out
+            productsGrid.style.opacity = 0;
+            
+            setTimeout(() => {
+                productsGrid.innerHTML = ''; // Clear cũ
+                
+                const filtered = productsData.filter(p => filterCategory === 'all' || p.category === filterCategory);
+                
+                filtered.forEach((product, index) => {
+                    const delay = index * 0.1; // Hiệu ứng trễ từng thẻ
+                    const cardHTML = `
+                        <div class="ios-liquid p-6 product-card cursor-pointer group rounded-3xl" style="animation: slideUp 0.5s ease forwards; animation-delay: ${delay}s; opacity: 0;" onclick="openProductModal('${product.id}')">
+                            <div class="relative mb-6 flex justify-center items-center h-64 bg-white/50 rounded-2xl overflow-hidden border border-white">
+                                <img src="${product.img}" alt="${product.title}" class="w-full h-full object-contain product-img-wrapper mix-blend-darken">
+                                <!-- Nút xem nhanh -->
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 bg-white/30 backdrop-blur-sm">
+                                    <span class="bg-gray-900 text-white px-5 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 shadow-lg">
+                                        <i class="fa-solid fa-eye"></i> Xem Ngay
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="text-xl font-bold text-gray-900 tracking-tight">${product.title}</h3>
+                                    <span class="bg-gray-100 px-2.5 py-1 rounded-full text-[11px] font-semibold text-gray-600 border border-gray-200">${product.category}</span>
+                                </div>
+                                <p class="text-gray-500 text-sm line-clamp-2">${product.desc}</p>
+                                <div class="flex justify-between items-center pt-4">
+                                    <p class="text-lg font-bold text-primary">${product.price}</p>
+                                    <button class="btn-rainbow-glass w-10 h-10 rounded-full bg-gray-50 hover:bg-primary text-gray-600 hover:text-white transition-colors flex items-center justify-center border border-gray-200 shadow-sm" onclick="event.stopPropagation(); alert('Đã thêm ${product.title} vào giỏ!')">
+                                        <i class="fa-solid fa-plus relative z-10"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    productsGrid.innerHTML += cardHTML;
+                });
+                
+                // Fade in
+                productsGrid.style.opacity = 1;
+            }, 300);
+        }
+
+        // Bắt sự kiện click nút lọc
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Đổi style nút active
+                filterBtns.forEach(b => {
+                    b.classList.remove('active', 'bg-primary', 'text-white', 'border-primary');
+                    b.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+                });
+                const clickedBtn = e.target;
+                clickedBtn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+                clickedBtn.classList.add('active', 'bg-primary', 'text-white', 'border-primary');
+                
+                // Render lại sản phẩm
+                renderProducts(clickedBtn.getAttribute('data-filter'));
+            });
+        });
+
+        // Render lần đầu
+        renderProducts('all');
+
+        // --- SCROLL NAVBAR ---
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                // Navbar đã thiết kế kiểu đảo (pill) nên chỉ cần hiệu ứng nhẹ
+            }
+        });
+
+        // Hiệu ứng xuất hiện khi cuộn (Reveal)
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 100;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                    reveals[i].classList.add("active-liquid"); // Bật sáng cầu vồng
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        setTimeout(reveal, 100);
+
+        // --- MOBILE MENU ---
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            mobileMenu.classList.toggle('flex');
+            const icon = mobileBtn.querySelector('i');
+            if(mobileMenu.classList.contains('hidden')){
+                icon.classList.remove('fa-xmark');
+                icon.classList.add('fa-bars');
+            } else {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-xmark');
+            }
+        });
+
+        // --- MODAL XỬ LÝ ---
+        const modal = document.getElementById('productModal');
+        const modalContent = document.getElementById('modalContent');
+
+        function openProductModal(productId) {
+            document.body.style.overflow = 'hidden';
+            
+            const data = productsData.find(p => p.id === productId);
+            if(!data) return;
+
+            document.getElementById('modalTitle').innerText = data.title;
+            document.getElementById('modalCategory').innerText = data.category;
+            document.getElementById('modalPrice').innerText = data.price;
+            document.getElementById('modalDesc').innerText = data.desc;
+            document.getElementById('modalImg').src = data.img;
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeProductModal() {
+            document.body.style.overflow = '';
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 400);
+        }
+    </script>
+</body>
+</html>
