@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Đa Vũ Trụ Của Chúng Mình</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000000; font-family: 'Segoe UI', Tahoma, sans-serif;
+            color: white; overflow: hidden; /* Khóa cuộn trang hoàn toàn */
+            touch-action: none; user-select: none;
+        }
+
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1;
+        }
+
+        /* Giao diện UI đè lên 3D */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+        }
+
+        /* Hướng dẫn click HELLO */
+        #hint-text {
+            position: absolute; bottom: 15%; width: 100%; text-align: center;
+            font-size: clamp(1rem, 4vw, 1.2rem); letter-spacing: 3px; opacity: 0;
+            animation: pulse 2s infinite; pointer-events: none;
+            display: none; /* Khởi tạo ẩn, chỉ hiện ở HELLO */
+        }
+
+        /* Nút quay lại (Tối ưu tai thỏ iPhone) */
+        #back-btn {
+            position: fixed; 
+            top: max(20px, env(safe-area-inset-top)); 
+            left: max(20px, env(safe-area-inset-left)); 
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white; padding: 8px 16px; border-radius: 30px;
+            font-size: clamp(0.8rem, 3vw, 1rem);
+            cursor: pointer; backdrop-filter: blur(5px); display: none;
+            transition: all 0.3s; pointer-events: auto;
+        }
+        #back-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+        /* Tên các vũ trụ */
+        .universe-label {
+            position: absolute; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255,255,255,0.2);
+            padding: clamp(6px, 2vw, 8px) clamp(12px, 4vw, 15px); 
+            border-radius: 20px; font-size: clamp(0.7rem, 3vw, 0.9rem);
+            letter-spacing: 2px; white-space: nowrap; 
+            opacity: 0; pointer-events: none; /* Ban đầu ẩn và không nhận click */
+            transition: opacity 0.5s, transform 0.2s; cursor: pointer;
+        }
+        .universe-label:hover { background: rgba(255,255,255,0.2); transform: translate(-50%, -50%) scale(1.1); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 999; display: flex; justify-content: center; align-items: center;
+            font-size: clamp(1rem, 4vw, 1.2rem); letter-spacing: 2px; transition: opacity 1s ease;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+    <div id="loader">Đang tạo đa vũ trụ...</div>
+    <button id="back-btn">← Thoát ra</button>
+    <div id="bg-canvas"></div>
+    
+    <div id="ui-layer">
+        <div id="hint-text">Chạm vào chữ HELLO</div>
+        <!-- Nhãn cho 3 vũ trụ -->
+        <div id="label-1" class="universe-label">Lần Đầu Gặp</div>
+        <div id="label-2" class="universe-label">Những Chuyến Đi</div>
+        <div id="label-3" class="universe-label">Kỷ Niệm Ngọt Ngào</div>
+    </div>
+
+    <script>
+        // --- DỮ LIỆU HÌNH ẢNH (3 VŨ TRỤ x 10 ẢNH) ---
+        const universeImages = [
+            [ // Vũ trụ 1: Lần đầu gặp
+                "", "", "", "", "", "", "", "", "", ""
+            ],
+            [ // Vũ trụ 2: Những chuyến đi
+                "", "", "", "", "", "", "", "", "", ""
+            ],
+            [ // Vũ trụ 3: Kỷ niệm ngọt ngào
+                "", "", "", "", "", "", "", "", "", ""
+            ]
+        ];
+
+        const colors = [0x44aaff, 0xffaa44, 0xff44aa]; // Xanh, Cam, Hồng
+
+        // --- TRẠNG THÁI ---
+        let currentState = 'HELLO'; // HELLO -> UNIVERSES -> GALLERY
+        let currentUniverseIndex = -1;
+        
+        let targetFov = 90; // Dùng để lưu FOV hiện tại cho chức năng Zoom
+        let isMobile = window.innerWidth < 768; // Kiểm tra thiết bị Mobile
+
+        // --- KHỞI TẠO THREE.JS ---
+        const container = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.z = 100;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // --- TEXTURE VÀ CHẤT LIỆU ---
+        
+        function createParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient; ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+        const particleTexture = createParticleTexture();
+
+        // Texture Trái Tim
+        function createHeartTexture(color, isGlow) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            
+            if (isGlow) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 20;
+            }
+            
+            ctx.fillStyle = color;
+            const path = new Path2D("M 64 100 C 64 100 20 60 20 35 C 20 20 35 10 50 10 C 58 10 64 18 64 18 C 64 18 70 10 78 10 C 93 10 108 20 108 35 C 108 60 64 100 64 100 Z");
+            ctx.fill(path);
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const pinkHeartMat = new THREE.MeshBasicMaterial({ 
+            map: createHeartTexture('#ff66b2', false), 
+            transparent: true, depthWrite: false, side: THREE.DoubleSide 
+        });
+
+        // --- 1. MƯA SAO BĂNG ---
+        const shootingStarsGeo = new THREE.BufferGeometry();
+        const shootingStarsCount = 400;
+        const starPositions = new Float32Array(shootingStarsCount * 3);
+        const starVelocities = [];
+
+        for(let i = 0; i < shootingStarsCount; i++) {
+            starPositions[i*3] = (Math.random() - 0.5) * 1500;
+            starPositions[i*3+1] = Math.random() * 1500;
+            starPositions[i*3+2] = (Math.random() - 0.5) * 1500;
+            starVelocities.push({ y: Math.random() * 2 + 0.5, z: 0 });
+        }
+        shootingStarsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const shootingStarsMat = new THREE.PointsMaterial({
+            color: 0xffffff, size: 1.5, transparent: true, opacity: 0.6,
+            map: particleTexture, blending: THREE.AdditiveBlending
+        });
+        const shootingStars = new THREE.Points(shootingStarsGeo, shootingStarsMat);
+        scene.add(shootingStars);
+
+        // --- 1.5. MƯA SAO BĂNG VỆT DÀI (CHỈ CHO GALLERY) ---
+        const meteorCount = 150;
+        const meteorGeo = new THREE.BufferGeometry();
+        const meteorPos = new Float32Array(meteorCount * 6); // 2 điểm cho mỗi vệt (Line)
+        const meteorVels = [];
+
+        for (let i = 0; i < meteorCount; i++) {
+            let x = (Math.random() - 0.5) * 2000;
+            let y = (Math.random() - 0.5) * 2000;
+            let z = (Math.random() - 0.5) * 2000;
+            let len = Math.random() * 80 + 30; // Chiều dài vệt sao
+            
+            meteorPos[i*6] = x;
+            meteorPos[i*6+1] = y;
+            meteorPos[i*6+2] = z;
+            meteorPos[i*6+3] = x + len; 
+            meteorPos[i*6+4] = y - len * 0.3; // Rơi chéo xuống
+            meteorPos[i*6+5] = z;
+            
+            meteorVels.push(Math.random() * 15 + 10); // Tốc độ bay nhanh
+        }
+
+        meteorGeo.setAttribute('position', new THREE.BufferAttribute(meteorPos, 3));
+        const meteorMat = new THREE.LineBasicMaterial({ 
+            color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending 
+        });
+        const galleryMeteors = new THREE.LineSegments(meteorGeo, meteorMat);
+        galleryMeteors.visible = false; // Ẩn ban đầu
+        scene.add(galleryMeteors);
+
+        // --- 2. CHỮ HELLO & HITBOX ---
+        let helloGroup = new THREE.Group();
+        scene.add(helloGroup);
+        
+        const helloTargets = [];
+        const helloRandoms = [];
+        let helloParticles;
+
+        function createHello() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 800; canvas.height = 300;
+            ctx.fillStyle = 'white'; ctx.font = 'bold 150px Arial';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('HELLO', canvas.width/2, canvas.height/2);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let y = 0; y < canvas.height; y += 2) {
+                for (let x = 0; x < canvas.width; x += 2) {
+                    if (imgData[((y * canvas.width + x) * 4) + 3] > 128) {
+                        helloTargets.push(new THREE.Vector3((x - canvas.width/2) * 0.2, -(y - canvas.height/2) * 0.2, (Math.random() - 0.5) * 5));
+                        helloRandoms.push(new THREE.Vector3((Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000));
+                    }
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            const positions = new Float32Array(helloTargets.length * 3);
+            for(let i=0; i<helloRandoms.length; i++) {
+                positions[i*3] = helloRandoms[i].x;
+                positions[i*3+1] = helloRandoms[i].y;
+                positions[i*3+2] = helloRandoms[i].z;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const mat = new THREE.PointsMaterial({
+                size: 0.8, color: 0xffffff, transparent: true, opacity: 0, 
+                map: particleTexture, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            helloParticles = new THREE.Points(geo, mat);
+            helloParticles.frustumCulled = false; // Ngăn chặn lỗi biến mất hạt
+            helloGroup.add(helloParticles);
+
+            const hitboxGeo = new THREE.PlaneGeometry(300, 150); 
+            const hitboxMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+            const hitbox = new THREE.Mesh(hitboxGeo, hitboxMat);
+            hitbox.name = "helloHitbox";
+            helloGroup.add(hitbox);
+        }
+        createHello();
+
+        // --- 3. TẠO 3 VŨ TRỤ ---
+        let universesGroup = new THREE.Group();
+        universesGroup.position.z = -150; 
+        universesGroup.visible = false;
+        scene.add(universesGroup);
+
+        const universes = [];
+        const universeLabels = [
+            document.getElementById('label-1'),
+            document.getElementById('label-2'),
+            document.getElementById('label-3')
+        ];
+
+        function createUniverseHeart(color, x, y, z, index) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+            group.userData = { index: index };
+
+            const particleCount = 3000;
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(particleCount * 3);
+            
+            let i = 0;
+            while(i < particleCount) {
+                let px = (Math.random() - 0.5) * 3;
+                let py = (Math.random() - 0.5) * 3;
+                let pz = (Math.random() - 0.5) * 3;
+                
+                let a = px*px + 2.25*pz*pz + py*py - 1;
+                let val = a*a*a - px*px*py*py*py - 0.1125*pz*pz*py*py*py;
+                
+                if (val < 0.0) { 
+                    let scale = 18 + Math.random() * 2; 
+                    pos[i*3] = px * scale;
+                    pos[i*3+1] = py * scale;
+                    pos[i*3+2] = pz * scale;
+                    i++;
+                }
+            }
+            
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                size: 1.2, color: color, transparent: true, opacity: 0,
+                map: particleTexture, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            const points = new THREE.Points(geo, mat);
+            group.add(points);
+            group.pointsMaterial = mat; 
+
+            const clickSphere = new THREE.Mesh(new THREE.SphereGeometry(35, 16, 16), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); 
+            clickSphere.name = "universeHitbox";
+            clickSphere.userData = { index: index };
+            group.add(clickSphere);
+
+            universesGroup.add(group);
+            universes.push(group);
+        }
+
+        createUniverseHeart(colors[0], -60, 20, 0, 0);
+        createUniverseHeart(colors[1], 60, 20, 0, 1);
+        createUniverseHeart(colors[2], 0, -30, 20, 2);
+
+
+        // --- 4. BỘ SƯU TẬP ẢNH ---
+        let galleryGroup = new THREE.Group();
+        galleryGroup.visible = false;
+        scene.add(galleryGroup);
+        
+        const galleryGroups = []; 
+        const galleryMeshes = []; 
+
+        function initGalleryPlanes() {
+            const radius = 80; 
+            for(let i=0; i<10; i++){
+                const angle = (i / 10) * Math.PI * 2;
+                
+                const imageGroup = new THREE.Group();
+                imageGroup.position.x = Math.cos(angle) * radius;
+                imageGroup.position.z = Math.sin(angle) * radius;
+                imageGroup.position.y = (Math.random() - 0.5) * 15; 
+                imageGroup.lookAt(0, imageGroup.position.y, 0);
+
+                const geometry = new THREE.PlaneGeometry(30, 40);
+                const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 0 });
+                const mesh = new THREE.Mesh(geometry, material);
+                imageGroup.add(mesh);
+                
+                const hearts = [];
+                const heartGeo = new THREE.PlaneGeometry(5, 5);
+                const corners = [[-15, 20], [15, 20], [-15, -20], [15, -20]];
+                
+                corners.forEach(pos => {
+                    const h = new THREE.Mesh(heartGeo, pinkHeartMat);
+                    h.position.set(pos[0], pos[1], 0.2); 
+                    imageGroup.add(h);
+                    hearts.push(h);
+                });
+
+                imageGroup.userData = { mesh: mesh, hearts: hearts };
+                
+                galleryGroup.add(imageGroup);
+                galleryGroups.push(imageGroup);
+                galleryMeshes.push(mesh);
+            }
+        }
+        initGalleryPlanes();
+
+        function loadImagesForUniverse(index) {
+            const urls = universeImages[index];
+            const color = colors[index];
+            
+            galleryGroups.forEach((group, i) => {
+                const mesh = group.userData.mesh;
+                
+                if (urls[i] && urls[i].trim() !== "") {
+                    new THREE.TextureLoader().load(urls[i], (texture) => {
+                        const imgAspect = texture.image.width / texture.image.height;
+                        let width, height;
+                        
+                        if (imgAspect > 1) { 
+                            width = 40; height = 40 / imgAspect;
+                        } else { 
+                            height = 40; width = 40 * imgAspect;
+                        }
+                        
+                        mesh.geometry.dispose();
+                        mesh.geometry = new THREE.PlaneGeometry(width, height);
+                        
+                        const hw = width / 2; const hh = height / 2;
+                        const corners = [ [-hw, hh], [hw, hh], [-hw, -hh], [hw, -hh] ];
+                        group.userData.hearts.forEach((h, idx) => {
+                            h.position.set(corners[idx][0], corners[idx][1], 0.2);
+                        });
+
+                        mesh.material.map = texture;
+                        mesh.material.needsUpdate = true;
+                    });
+                } else {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 300; canvas.height = 400;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+                    ctx.fillRect(0,0,300,400);
+                    ctx.fillStyle = 'white'; ctx.font = '24px Arial'; ctx.textAlign = 'center';
+                    ctx.fillText(`Kỷ niệm ${i + 1}`, 150, 200);
+                    
+                    mesh.geometry.dispose();
+                    mesh.geometry = new THREE.PlaneGeometry(30, 40);
+
+                    mesh.material.map = new THREE.CanvasTexture(canvas);
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        }
+
+        // --- 5. HỆ THỐNG PHÁO HOA ---
+        let fireworks = [];
+        const fireworkMaterial = new THREE.PointsMaterial({
+            size: 2, transparent: true, opacity: 1,
+            map: particleTexture, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+        });
+
+        function spawnFirework() {
+            if (currentState !== 'GALLERY') return;
+
+            const particleCount = 100;
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(particleCount * 3);
+            const colorsArr = new Float32Array(particleCount * 3);
+            const velocities = [];
+
+            const startX = camera.position.x + (Math.random() - 0.5) * 100;
+            const startY = camera.position.y + 60 + Math.random() * 40; 
+            const startZ = camera.position.z + (Math.random() - 0.5) * 100;
+
+            const baseColor = new THREE.Color().setHSL(Math.random(), 1, 0.5);
+
+            for(let i=0; i<particleCount; i++) {
+                pos[i*3] = startX;
+                pos[i*3+1] = startY;
+                pos[i*3+2] = startZ;
+
+                const speed = 0.5 + Math.random() * 1.5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                velocities.push({
+                    x: speed * Math.sin(phi) * Math.cos(theta),
+                    y: speed * Math.sin(phi) * Math.sin(theta),
+                    z: speed * Math.cos(phi)
+                });
+
+                colorsArr[i*3] = baseColor.r;
+                colorsArr[i*3+1] = baseColor.g;
+                colorsArr[i*3+2] = baseColor.b;
+            }
+
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colorsArr, 3));
+
+            const points = new THREE.Points(geo, fireworkMaterial.clone());
+            scene.add(points);
+
+            fireworks.push({ points: points, velocities: velocities, life: 1.0 });
+        }
+
+
+        // --- ANIMATIONS & TRANSITIONS ---
+
+        function animateHelloIn() {
+            document.getElementById('hint-text').style.display = 'block'; 
+            const obj = { value: 0 };
+            const positions = helloParticles.geometry.attributes.position.array;
+            
+            // Tối ưu hóa kích thước chữ HELLO cho Mobile
+            const targetScale = isMobile ? 0.6 : 1; 
+            
+            helloGroup.rotation.z = Math.PI / 4;
+            helloGroup.scale.set(targetScale * 1.5, targetScale * 1.5, targetScale * 1.5);
+            gsap.to(helloGroup.rotation, { z: 0, duration: 4, ease: "power2.out" });
+            gsap.to(helloGroup.scale, { x: targetScale, y: targetScale, z: targetScale, duration: 4, ease: "power2.out" });
+            
+            gsap.to(helloParticles.material, { opacity: 0.9, duration: 3 });
+
+            gsap.to(obj, {
+                value: 1, duration: 4, ease: "power3.out", 
+                onUpdate: () => {
+                    for(let i=0; i<helloTargets.length; i++) {
+                        positions[i*3] = THREE.MathUtils.lerp(helloRandoms[i].x, helloTargets[i].x, obj.value);
+                        positions[i*3+1] = THREE.MathUtils.lerp(helloRandoms[i].y, helloTargets[i].y, obj.value);
+                        positions[i*3+2] = THREE.MathUtils.lerp(helloRandoms[i].z, helloTargets[i].z, obj.value);
+                    }
+                    helloParticles.geometry.attributes.position.needsUpdate = true;
+                },
+                onComplete: () => { document.getElementById('hint-text').style.opacity = '1'; }
+            });
+        }
+
+        function transitionToUniverses() {
+            // Dọn dẹp Animation cũ nếu click quá nhanh
+            gsap.killTweensOf(helloParticles.material);
+            
+            currentState = 'UNIVERSES';
+            document.getElementById('hint-text').style.opacity = '0';
+            setTimeout(() => { document.getElementById('hint-text').style.display = 'none'; }, 500);
+            
+            document.getElementById('back-btn').style.display = 'block';
+
+            gsap.to(helloParticles.material, { opacity: 0, duration: 1.5 });
+            
+            universesGroup.visible = true;
+            universes.forEach(u => { gsap.to(u.pointsMaterial, { opacity: 1, duration: 2, delay: 0.5 }); });
+
+            // Tối ưu hóa khoảng cách Camera cho Mobile để thấy hết 3 trái tim
+            const targetZ = isMobile ? 20 : -50;
+
+            gsap.to(camera.position, {
+                z: targetZ, duration: 2, ease: "power2.inOut",
+                onComplete: () => {
+                    universeLabels.forEach(lbl => {
+                        lbl.style.opacity = '1';
+                        lbl.style.pointerEvents = 'auto'; // Bật tương tác
+                    });
+                    for(let i = 0; i < shootingStarsCount; i++) {
+                         starVelocities[i] = { y: 0, z: Math.random() * 4 + 2 };
+                    }
+                }
+            });
+        }
+
+        function transitionToGallery(index) {
+            currentState = 'GALLERY';
+            currentUniverseIndex = index;
+            
+            // TẮT HOÀN TOÀN NHÃN LABEL ĐỂ KHÔNG CHẶN THAO TÁC VUỐT
+            universeLabels.forEach(lbl => {
+                lbl.style.opacity = '0';
+                lbl.style.pointerEvents = 'none'; 
+            });
+
+            const targetUniverse = universes[index];
+            loadImagesForUniverse(index);
+
+            gsap.to(camera.position, {
+                x: targetUniverse.position.x,
+                y: targetUniverse.position.y,
+                z: targetUniverse.position.z - 200, 
+                duration: 2.5, ease: "power2.inOut",
+                onComplete: () => {
+                    universesGroup.visible = false; 
+                    galleryGroup.position.copy(camera.position); 
+                    galleryGroup.visible = true;
+                    
+                    galleryGroups.forEach((g, i) => {
+                        gsap.to(g.userData.mesh.material, { opacity: 1, duration: 1, delay: i * 0.1 });
+                    });
+                }
+            });
+
+            // Tối ưu Góc nhìn (FOV) rộng hơn trên Mobile
+            targetFov = isMobile ? 120 : 90;
+            gsap.to(camera, { fov: targetFov, duration: 2, onUpdate: () => camera.updateProjectionMatrix() });
+            universes.forEach(u => gsap.to(u.pointsMaterial, { opacity: 0, duration: 1.5 }));
+            
+            galleryMeteors.visible = true;
+            gsap.to(shootingStarsMat, { opacity: 0.1, duration: 1 }); 
+        }
+
+
+        // XỬ LÝ NÚT THOÁT RA (BACK)
+        document.getElementById('back-btn').addEventListener('click', () => {
+            if (currentState === 'GALLERY') {
+                currentState = 'UNIVERSES';
+                
+                galleryGroups.forEach((g) => gsap.to(g.userData.mesh.material, { opacity: 0, duration: 0.5 }));
+                
+                const targetZ = isMobile ? 20 : -50;
+                gsap.to(camera.position, {
+                    x: 0, y: 0, z: targetZ, 
+                    duration: 2.5, ease: "power2.inOut",
+                    onComplete: () => {
+                        galleryGroup.visible = false;
+                        universesGroup.visible = true;
+                        // MỞ LẠI LABEL KHI VỀ MÀN HÌNH CHỌN
+                        universeLabels.forEach(lbl => {
+                            lbl.style.opacity = '1';
+                            lbl.style.pointerEvents = 'auto';
+                        });
+                    }
+                });
+
+                gsap.to(camera, { fov: 75, duration: 2, onUpdate: () => camera.updateProjectionMatrix() });
+                universes.forEach(u => gsap.to(u.pointsMaterial, { opacity: 1, duration: 2 }));
+
+                gsap.to(camera.rotation, { x: 0, y: 0, duration: 2 });
+                targetRotX = 0; targetRotY = 0;
+
+                galleryMeteors.visible = false;
+                gsap.to(shootingStarsMat, { opacity: 0.6, duration: 1 }); 
+
+            } 
+            else if (currentState === 'UNIVERSES') {
+                currentState = 'HELLO';
+                document.getElementById('back-btn').style.display = 'none';
+                
+                // Tắt label
+                universeLabels.forEach(lbl => {
+                    lbl.style.opacity = '0';
+                    lbl.style.pointerEvents = 'none';
+                });
+
+                universes.forEach(u => gsap.to(u.pointsMaterial, { opacity: 0, duration: 1 }));
+                
+                gsap.to(camera.position, {
+                    x: 0, y: 0, z: 100,
+                    duration: 2, ease: "power2.inOut",
+                    onComplete: () => {
+                        universesGroup.visible = false;
+                        document.getElementById('hint-text').style.display = 'block'; 
+                        gsap.to(document.getElementById('hint-text'), { opacity: 1, duration: 1 });
+                        
+                        for(let i = 0; i < shootingStarsCount; i++) {
+                            starVelocities[i] = { y: Math.random() * 2 + 0.5, z: 0 };
+                        }
+                    }
+                });
+
+                gsap.to(helloParticles.material, { opacity: 0.9, duration: 2 });
+            }
+        });
+
+
+        // --- TƯƠNG TÁC VUỐT VÀ ZOOM (ĐÃ FIX LỖI NHẠY) ---
+        let targetRotX = 0; let targetRotY = 0;
+        let isDragging = false;
+        let hasDragged = false; // Biến đánh dấu để phân biệt vuốt và click
+        let previousMousePosition = { x: 0, y: 0 };
+        let pointerDownPos = { x: 0, y: 0 };
+        let fireworkTimer = 0;
+        let initialPinchDistance = null;
+
+        window.addEventListener('click', (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.classList.contains('universe-label')) return;
+            
+            // Nếu người dùng vừa thực hiện thao tác vuốt thì HỦY click
+            if (hasDragged) return;
+
+            // Xác định tọa độ (hỗ trợ mobile fallback)
+            let cx = e.clientX; let cy = e.clientY;
+            if (cx === 0 && cy === 0) { cx = pointerDownPos.x; cy = pointerDownPos.y; }
+
+            mouse.x = (cx / window.innerWidth) * 2 - 1;
+            mouse.y = -(cy / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            if (currentState === 'HELLO') {
+                const intersects = raycaster.intersectObject(helloGroup.getObjectByName("helloHitbox"));
+                if (intersects.length > 0) transitionToUniverses();
+            } 
+            else if (currentState === 'UNIVERSES') {
+                const intersects = raycaster.intersectObjects(universesGroup.children, true);
+                if (intersects.length > 0) {
+                    const hit = intersects.find(i => i.object.name === "universeHitbox");
+                    if (hit) transitionToGallery(hit.object.userData.index);
+                }
+            } 
+        });
+
+        universeLabels.forEach((lbl, index) => {
+            lbl.addEventListener('click', () => {
+                if(currentState === 'UNIVERSES' && !hasDragged) transitionToGallery(index);
+            });
+        });
+
+        window.addEventListener('wheel', (e) => {
+            if (currentState === 'GALLERY') {
+                targetFov += e.deltaY * 0.05;
+                targetFov = Math.max(30, Math.min(150, targetFov));
+                gsap.to(camera, { fov: targetFov, duration: 0.3, onUpdate: () => camera.updateProjectionMatrix() });
+            }
+        });
+
+        // Xử lý logic vuốt chính xác
+        function onDragStart(x, y) { 
+            isDragging = true; 
+            hasDragged = false; // Reset lại khi bắt đầu chạm
+            previousMousePosition = { x, y }; 
+            pointerDownPos = { x, y }; 
+        }
+        function onDragEnd() { isDragging = false; }
+        
+        function onDragMove(x, y) {
+            if (!isDragging) return;
+            
+            const deltaX = x - previousMousePosition.x;
+            const deltaY = y - previousMousePosition.y;
+            
+            // Nếu di chuyển quá 5 pixel thì đánh dấu là đang vuốt
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                hasDragged = true;
+            }
+
+            if (currentState === 'GALLERY') {
+                const speedX = 0.0035; 
+                const speedY = 0.0035;
+                
+                targetRotY += deltaX * speedX;
+                targetRotX += deltaY * speedY;
+                
+                targetRotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetRotX));
+            }
+            previousMousePosition = { x, y };
+        }
+
+        window.addEventListener('mousedown', (e) => onDragStart(e.clientX, e.clientY));
+        window.addEventListener('mouseup', onDragEnd);
+        window.addEventListener('mousemove', (e) => onDragMove(e.clientX, e.clientY));
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            } else if (e.touches.length === 1) {
+                onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) initialPinchDistance = null;
+            onDragEnd();
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (currentState === 'GALLERY' && e.touches.length === 2 && initialPinchDistance !== null) {
+                const currentPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const diff = initialPinchDistance - currentPinchDistance;
+                targetFov += diff * 0.3;
+                const maxFov = isMobile ? 150 : 120;
+                targetFov = Math.max(30, Math.min(maxFov, targetFov));
+                gsap.to(camera, { fov: targetFov, duration: 0.1, onUpdate: () => camera.updateProjectionMatrix() });
+                initialPinchDistance = currentPinchDistance;
+                hasDragged = true;
+            } else if (e.touches.length === 1) {
+                onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, {passive: false});
+
+
+        function updateLabels() {
+            if (currentState !== 'UNIVERSES') return;
+            
+            universes.forEach((u, index) => {
+                const vector = new THREE.Vector3();
+                u.getWorldPosition(vector);
+                vector.project(camera); 
+                
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = (vector.y * -.5 + .5) * window.innerHeight;
+                
+                universeLabels[index].style.left = `${x}px`;
+                universeLabels[index].style.top = `${y + (isMobile ? 100 : 80)}px`;
+                
+                // Ẩn nhãn nếu quả cầu nằm phía sau camera
+                if (vector.z > 1) {
+                    universeLabels[index].style.opacity = '0';
+                    universeLabels[index].style.pointerEvents = 'none';
+                }
+            });
+        }
+
+        // --- RENDER LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            const starPos = shootingStarsGeo.attributes.position.array;
+            for(let i = 0; i < shootingStarsCount; i++) {
+                starPos[i*3+1] -= starVelocities[i].y; 
+                starPos[i*3+2] += starVelocities[i].z; 
+                
+                if (starPos[i*3+1] < -800) starPos[i*3+1] = 800; 
+                if (starPos[i*3+2] > camera.position.z + 100) {  
+                    starPos[i*3+2] = camera.position.z - 1500;
+                    starPos[i*3] = camera.position.x + (Math.random() - 0.5) * 1500;
+                    starPos[i*3+1] = camera.position.y + (Math.random() - 0.5) * 1500;
+                }
+            }
+            shootingStarsGeo.attributes.position.needsUpdate = true;
+
+            if (currentState === 'HELLO') {
+                 const positions = helloParticles.geometry.attributes.position.array;
+                 for(let i=0; i<helloTargets.length; i++) {
+                     positions[i*3+1] += Math.sin(time * 2 + positions[i*3]) * 0.01;
+                 }
+                 helloParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if (currentState === 'UNIVERSES') {
+                universes.forEach(u => u.rotation.y += 0.005);
+                updateLabels();
+            }
+
+            if (currentState === 'GALLERY') {
+                camera.rotation.y += (targetRotY - camera.rotation.y) * 0.1;
+                camera.rotation.x += (targetRotX - camera.rotation.x) * 0.1;
+
+                const mPos = galleryMeteors.geometry.attributes.position.array;
+                for (let i = 0; i < meteorCount; i++) {
+                    let speed = meteorVels[i];
+                    
+                    mPos[i*6] += speed; 
+                    mPos[i*6+1] -= speed * 0.3; 
+                    mPos[i*6+3] += speed; 
+                    mPos[i*6+4] -= speed * 0.3; 
+
+                    if (mPos[i*6] > camera.position.x + 1000 || mPos[i*6+1] < camera.position.y - 1000) {
+                        let newX = camera.position.x - 1000 - Math.random() * 500; 
+                        let newY = camera.position.y + 1000 + Math.random() * 500;
+                        let len = Math.random() * 80 + 30;
+                        
+                        mPos[i*6] = newX;
+                        mPos[i*6+1] = newY;
+                        mPos[i*6+3] = newX + len;
+                        mPos[i*6+4] = newY - len * 0.3;
+                    }
+                }
+                galleryMeteors.geometry.attributes.position.needsUpdate = true;
+
+                const heartBeat = 1 + Math.sin(time * 6) * 0.15; 
+                galleryGroups.forEach((group, i) => {
+                    group.position.y += Math.sin(time * 2 + i) * 0.03;
+                    group.userData.hearts.forEach(h => {
+                        h.scale.set(heartBeat, heartBeat, 1);
+                    });
+                });
+
+                if (camera.rotation.x < -0.3) {
+                    fireworkTimer += 1;
+                    if (fireworkTimer > 30) { 
+                        spawnFirework();
+                        fireworkTimer = 0;
+                    }
+                } else {
+                    fireworkTimer = 0;
+                }
+            }
+
+            for(let i = fireworks.length - 1; i >= 0; i--) {
+                const fw = fireworks[i];
+                fw.life -= 0.02;
+                
+                if (fw.life <= 0) {
+                    scene.remove(fw.points);
+                    fw.points.geometry.dispose();
+                    fw.points.material.dispose();
+                    fireworks.splice(i, 1);
+                } else {
+                    const positions = fw.points.geometry.attributes.position.array;
+                    for(let j=0; j<fw.velocities.length; j++) {
+                        positions[j*3] += fw.velocities[j].x;
+                        positions[j*3+1] += fw.velocities[j].y;
+                        positions[j*3+2] += fw.velocities[j].z;
+                        fw.velocities[j].y -= 0.05; 
+                    }
+                    fw.points.geometry.attributes.position.needsUpdate = true;
+                    fw.points.material.opacity = fw.life; 
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            isMobile = window.innerWidth < 768; // Cập nhật lại trạng thái Mobile
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateLabels();
+        });
+
+        window.onload = () => {
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 1000);
+                
+                animateHelloIn();
+                animate();
+            }, 1000);
+        };
+
+    </script>
+</body>
+</html>
